@@ -2,11 +2,27 @@ const ROWS = 9
 const COLS = 9
 const SIZE = 24
 const canvas = document.getElementById('canvas')
+const restartButton = document.getElementById('restart')
 
-const cells = new Map()
-const revealedKeys = new Set()
-const flaggedKeys = new Set()
-const map = generateMap(generateBombs())
+let failedBombKey
+let cells
+let revealedKeys
+let flaggedKeys
+let map
+
+function startGame() {
+    failedBombKey = null
+    revealedKeys = new Set()
+    flaggedKeys = new Set()
+    map = generateMap(generateBombs())
+    if (cells) {
+        updateButtons()
+    } else {
+        cells = new Map()
+        createButtons()
+    }
+}
+
 
 function toKey(row, col) {
     return row + '-' + col
@@ -25,15 +41,22 @@ function createButtons() {
             // oncontextmenu 需要浏览器支持
             // 右键点击按键触发
             cell.oncontextmenu = (e) => {
+                if (failedBombKey !== null) {
+                    return
+                }
                 e.preventDefault()
                 taggleFlag(key)
                 updateButtons()
             }
             cell.onclick = (e) => {
-                if (!flaggedKeys.has(key)) {
-                    propagateReveal(key, new Set())
-                    updateButtons()
+                if (flaggedKeys.has(key)) {
+                    return
                 }
+                if (failedBombKey !== null) {
+                    return
+                }
+                revealCell(key)
+                updateButtons()
             }
             cell.style.float = 'left'
             cell.style.width = SIZE + 'px'
@@ -43,6 +66,8 @@ function createButtons() {
             cells.set(key, cell)
         }
     }
+
+    restartButton.onclick = startGame
 }
 
 function updateButtons() {
@@ -51,11 +76,18 @@ function updateButtons() {
             const key = toKey(i, j)
             const cell = cells.get(key)
             cell.textContent = ''
+            cell.style.color = 'black'
             cell.disabled = false
             cell.style.backgroundColor = ''
-            if (revealedKeys.has(key)) {
+            const value = map.get(key)
+            if (failedBombKey !== null && value === 'bomb') {
                 cell.disabled = true
-                const value = map.get(key)
+                cell.textContent = '💣'
+                if (key === failedBombKey) {
+                    cell.style.backgroundColor = 'red'
+                }
+            } else if (revealedKeys.has(key)) {
+                cell.disabled = true
                 if (value === undefined) {
                     // as is
                 } else if (value === 1) {
@@ -77,6 +109,21 @@ function updateButtons() {
                 cell.textContent = '🚩'
             }
         }
+    }
+    if (failedBombKey !== null) {
+        canvas.style.pointerEvents = 'none'
+        restartButton.style.display = 'block'
+    } else {
+        canvas.style.pointerEvents = ''
+        restartButton.style.display = ''
+    }
+}
+
+function revealCell(key) {
+    if (map.get(key) === 'bomb') {
+        failedBombKey = key
+    } else {
+        propagateReveal(key, new Set())
     }
 }
 
@@ -169,4 +216,4 @@ function taggleFlag(key) {
     }
 }
 
-createButtons()
+startGame()
