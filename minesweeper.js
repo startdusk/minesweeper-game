@@ -5,11 +5,7 @@ const canvas = document.getElementById('canvas')
 
 const cells = new Map()
 const revealedKeys = new Set()
-const map = generateMap([
-    '1-1',
-    '1-2',
-    '1-3',
-])
+const map = generateMap(generateBombs())
 
 function toKey(row, col) {
     return row + '-' + col
@@ -26,7 +22,7 @@ function createButtons() {
         for (let j = 0; j < COLS; j++) {
             const cell = document.createElement('button')
             cell.onclick = () => {
-                revealCell(key)
+                revealCells(key)
             }
             cell.style.float = 'left'
             cell.style.width = SIZE + 'px'
@@ -71,16 +67,30 @@ function updateButtons() {
     }
 }
 
-function revealCell(key) {
-    revealedKeys.add(key)
+function revealCells(key) {
+    propagateReveal(key, new Set())
     updateButtons()
+}
+
+function propagateReveal(key, visited) {
+    revealedKeys.add(key)
+    visited.add(key)
+
+    const isEmpty = !map.has(key)
+    if (isEmpty) {
+        for (let neighborKey of getNeighbors(key)) {
+            if (!visited.has(neighborKey)) {
+                propagateReveal(neighborKey, visited)
+            }
+        }
+    }
 }
 
 function isInBounds([row, col]) {
     if (row < 0 || col < 0) {
         return false
     }
-    if (row > ROWS || col > COLS) {
+    if (row >= ROWS || col >= COLS) {
         return false
     }
     return true
@@ -122,8 +132,25 @@ function generateMap(seedBombs) {
             incrementDanger(neighborKey)
         }
     }
-    console.log(map)
+
     return map
+}
+
+function generateBombs() {
+    const count = Math.round(Math.sqrt(ROWS * COLS))
+    const bombs = []
+    const allKeys = []
+    for (let i = 0; i < ROWS; i++) {
+        for (let j = 0; j < COLS; j++) {
+            allKeys.push(toKey(i, j))
+        }
+    }
+    allKeys.sort(() => {
+        const coinFlip = Math.random() > 0.5
+        return coinFlip ? 1 : -1
+    })
+
+    return allKeys.slice(0, count)
 }
 
 createButtons()
