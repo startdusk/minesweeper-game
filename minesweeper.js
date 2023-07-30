@@ -5,6 +5,7 @@ const canvas = document.getElementById('canvas')
 
 const cells = new Map()
 const revealedKeys = new Set()
+const flaggedKeys = new Set()
 const map = generateMap(generateBombs())
 
 function toKey(row, col) {
@@ -21,8 +22,18 @@ function createButtons() {
     for (let i = 0; i < ROWS; i++) {
         for (let j = 0; j < COLS; j++) {
             const cell = document.createElement('button')
-            cell.onclick = () => {
-                revealCells(key)
+            // oncontextmenu 需要浏览器支持
+            // 右键点击按键触发
+            cell.oncontextmenu = (e) => {
+                e.preventDefault()
+                taggleFlag(key)
+                updateButtons()
+            }
+            cell.onclick = (e) => {
+                if (!flaggedKeys.has(key)) {
+                    propagateReveal(key, new Set())
+                    updateButtons()
+                }
             }
             cell.style.float = 'left'
             cell.style.width = SIZE + 'px'
@@ -39,37 +50,34 @@ function updateButtons() {
         for (let j = 0; j < COLS; j++) {
             const key = toKey(i, j)
             const cell = cells.get(key)
+            cell.textContent = ''
+            cell.disabled = false
+            cell.style.backgroundColor = ''
             if (revealedKeys.has(key)) {
                 cell.disabled = true
                 const value = map.get(key)
                 if (value === undefined) {
-                    cell.textContent = ''
+                    // as is
                 } else if (value === 1) {
                     cell.style.color = 'blue'
                     cell.textContent = '1'
                 } else if (value === 2) {
                     cell.style.color = 'green'
                     cell.textContent = '2'
-                } else if (value === 3) {
+                } else if (value >= 3) {
                     cell.style.color = 'red'
-                    cell.textContent = '3'
+                    cell.textContent = value
                 } else if (value === 'bomb') {
                     cell.textContent = '💣'
                     cell.style.backgroundColor = 'red'
                 } else {
-                    throw new Error('TODO')
+                    throw new Error('should never happen')
                 }
-            } else {
-                cell.disabled = false
-                cell.textContent = ''
+            } else if (flaggedKeys.has(key)) {
+                cell.textContent = '🚩'
             }
         }
     }
-}
-
-function revealCells(key) {
-    propagateReveal(key, new Set())
-    updateButtons()
 }
 
 function propagateReveal(key, visited) {
@@ -151,6 +159,14 @@ function generateBombs() {
     })
 
     return allKeys.slice(0, count)
+}
+
+function taggleFlag(key) {
+    if (flaggedKeys.has(key)) {
+        flaggedKeys.delete(key)
+    } else {
+        flaggedKeys.add(key)
+    }
 }
 
 createButtons()
